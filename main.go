@@ -29,6 +29,12 @@ func main() {
     })
     postPID := system.Root.Spawn(postProps)
 
+    // // Create comment actor
+    // commentProps := actor.PropsFromProducer(func() actor.Actor {
+    //     return actors.NewCommentActor()
+    // })
+    // commentPID := system.Root.Spawn(commentProps)
+
     // Register users in parallel
     users := []string{"user1", "user2"}
     var userFutures []*actor.Future
