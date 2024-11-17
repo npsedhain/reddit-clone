@@ -49,3 +49,33 @@ type CreatePostResponse struct {
     Error   string
     PostId  string
 }
+
+type JoinSubreddit struct {
+    UserId    string
+    SubredditName string
+}
+
+type JoinSubredditResponse struct {
+    Success bool
+    Error   string
+}
+
+type GetSubredditMembers struct {
+    SubredditName string
+}
+
+type GetSubredditMembersResponse struct {
+    Members []string
+    Success bool
+    Error   string
+}
+
+type LeaveSubreddit struct {
+    UserId        string
+    SubredditName string
+}
+
+type LeaveSubredditResponse struct {
+    Success bool
+    Error   string
+}

@@ -7,7 +7,7 @@ import (
 )
 
 type UserActor struct {
-    // In-memory storage for demo purposes
+    // In-memory storage
     users map[string]string // username -> password
 }
 
@@ -38,7 +38,7 @@ func (state *UserActor) Receive(context actor.Context) {
 
         if password, exists := state.users[msg.Username]; exists && password == msg.Password {
             response.Success = true
-            response.Token = "dummy-token-" + msg.Username // Simple token for demo
+            response.Token = "reddit-token-" + msg.Username // Simple token for demo
         } else {
             response.Success = false
             response.Error = "Invalid credentials"

@@ -2,64 +2,82 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"time"
-
 	"reddit/actors"
 	"reddit/messages"
+	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
 )
 
 func main() {
+    // Create the actor system
     system := actor.NewActorSystem()
 
-    // Create the root user actor
-    props := actor.PropsFromProducer(func() actor.Actor {
+    // Create the user actor
+    userProps := actor.PropsFromProducer(func() actor.Actor {
         return actors.NewUserActor()
     })
+    userPID := system.Root.Spawn(userProps)
 
-    userPID := system.Root.Spawn(props)
+    // Create the subreddit actor
+    subredditProps := actor.PropsFromProducer(func() actor.Actor {
+        return actors.NewSubredditActor()
+    })
+    subredditPID := system.Root.Spawn(subredditProps)
 
-    // Test registration
-    registerMsg := &messages.RegisterUser{
-        Username: "testuser",
-        Password: "password123",
-    }
-
-    result, err := system.Root.RequestFuture(userPID, registerMsg, 5*time.Second).Result()
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    if response, ok := result.(*messages.RegisterUserResponse); ok {
-        if response.Success {
-            fmt.Println("User registered successfully!")
-        } else {
-            fmt.Printf("Registration failed: %s\n", response.Error)
+    // Register users
+    users := []string{"user1", "user2"}
+    for _, username := range users {
+        registerMsg := &messages.RegisterUser{
+            Username: username,
+            Password: "password123",
+        }
+        result, _ := system.Root.RequestFuture(userPID, registerMsg, 5*time.Second).Result()
+        if response, ok := result.(*messages.RegisterUserResponse); ok && response.Success {
+            fmt.Printf("User registered: %s\n", username)
         }
     }
 
-    // Test login
-    loginMsg := &messages.LoginUser{
-        Username: "testuser",
-        Password: "password123",
+    // Create a subreddit
+    createSubMsg := &messages.CreateSubreddit{
+        Name:        "programming",
+        Description: "Programming discussions",
+        CreatorId:   "user1",
+    }
+    result, _ := system.Root.RequestFuture(subredditPID, createSubMsg, 5*time.Second).Result()
+    if response, ok := result.(*messages.CreateSubredditResponse); ok && response.Success {
+        fmt.Printf("Subreddit created: %s\n", createSubMsg.Name)
     }
 
-    result, err = system.Root.RequestFuture(userPID, loginMsg, 5*time.Second).Result()
-    if err != nil {
-        log.Fatal(err)
+    // Join subreddit
+    joinMsg := &messages.JoinSubreddit{
+        UserId:        "user2",
+        SubredditName: "programming",
+    }
+    result, _ = system.Root.RequestFuture(subredditPID, joinMsg, 5*time.Second).Result()
+    if response, ok := result.(*messages.JoinSubredditResponse); ok && response.Success {
+        fmt.Printf("User %s joined subreddit: %s\n", joinMsg.UserId, joinMsg.SubredditName)
     }
 
-    if response, ok := result.(*messages.LoginUserResponse); ok {
-        if response.Success {
-            fmt.Println("User logged in successfully!")
-            fmt.Printf("Token: %s\n", response.Token)
-        } else {
-            fmt.Printf("Login failed: %s\n", response.Error)
-        }
+    // Leave subreddit
+    leaveMsg := &messages.LeaveSubreddit{
+        UserId:        "user2",
+        SubredditName: "programming",
+    }
+    result, _ = system.Root.RequestFuture(subredditPID, leaveMsg, 5*time.Second).Result()
+    if response, ok := result.(*messages.LeaveSubredditResponse); ok && response.Success {
+        fmt.Printf("User %s left subreddit: %s\n", leaveMsg.UserId, leaveMsg.SubredditName)
     }
 
-    // Keep the program running for a moment to see the results
+    // Get members to verify
+    getMembersMsg := &messages.GetSubredditMembers{
+        SubredditName: "programming",
+    }
+    result, _ = system.Root.RequestFuture(subredditPID, getMembersMsg, 5*time.Second).Result()
+    if response, ok := result.(*messages.GetSubredditMembersResponse); ok && response.Success {
+        fmt.Printf("Current members of %s: %v\n", getMembersMsg.SubredditName, response.Members)
+    }
+
+    // Keep the program running
     time.Sleep(1 * time.Second)
 }
