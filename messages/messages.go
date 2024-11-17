@@ -79,3 +79,22 @@ type LeaveSubredditResponse struct {
     Success bool
     Error   string
 }
+
+type GetSubredditPosts struct {
+    SubredditName string
+}
+
+type GetSubredditPostsResponse struct {
+    Success bool
+    Error   string
+    Posts   []Post
+}
+
+type Post struct {
+    PostId        string
+    Title         string
+    Content       string
+    AuthorId      string
+    SubredditName string
+    Timestamp     int64
+}
