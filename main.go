@@ -29,11 +29,16 @@ func main() {
     })
     postPID := system.Root.Spawn(postProps)
 
-    // // Create comment actor
-    // commentProps := actor.PropsFromProducer(func() actor.Actor {
-    //     return actors.NewCommentActor()
-    // })
-    // commentPID := system.Root.Spawn(commentProps)
+    // Create comment actor
+    commentProps := actor.PropsFromProducer(func() actor.Actor {
+        return actors.NewCommentActor()
+    })
+    commentPID := system.Root.Spawn(commentProps)
+
+    dmProps := actor.PropsFromProducer(func() actor.Actor {
+        return actors.NewDirectMessageActor()
+    })
+    dmPID := system.Root.Spawn(dmProps)
 
     // Register users in parallel
     users := []string{"user1", "user2"}
@@ -84,7 +89,7 @@ func main() {
     // Create posts in parallel
     posts := []messages.Post{
         {
-            Title:         "First Post",
+            Title:         "Post",
             Content:      "Hello, this is my first post!",
             AuthorId:     "user1",
             SubredditName: createSubMsg1.Name,
@@ -109,11 +114,94 @@ func main() {
         postFutures = append(postFutures, future)
     }
 
+    var postIds []string
+
     // Wait for all post creations
     for i, future := range postFutures {
         result, _ := future.Result()
         if response, ok := result.(*messages.CreatePostResponse); ok && response.Success {
             fmt.Printf("Post created: %s by %s\n", posts[i].Title, posts[i].AuthorId)
+            postIds = append(postIds, response.PostId)
+        }
+    }
+
+    if len(postIds) > 0 {
+        comments := []messages.CreateComment{
+            {
+                Content:  "Great first post!",
+                AuthorID: "user2",
+                PostID:   postIds[0],
+                ParentID: "", // Empty for top-level comments
+            },
+            {
+                Content:  "Thanks for sharing this.",
+                AuthorID: "user1",
+                PostID:   postIds[0],
+                ParentID: "", // Empty for top-level comments
+            },
+        }
+
+        var commentFutures []*actor.Future
+        for _, comment := range comments {
+            future := system.Root.RequestFuture(commentPID, &comment, 5*time.Second)
+            commentFutures = append(commentFutures, future)
+        }
+
+        // Wait for comment creation responses
+        for i, future := range commentFutures {
+            result, err := future.Result()
+            if err != nil {
+                fmt.Printf("Error creating comment: %v", err)
+                continue
+            }
+            if response, ok := result.(*messages.CreateCommentResponse); ok {
+                fmt.Printf("Comment created by %s, Success: %v, ID: %s",
+                    comments[i].AuthorID, response.Success, response.CommentID)
+            }
+        }
+    }
+
+    // Send some direct messages
+    var sentMsgID string
+    sendDM := &messages.SendDirectMessage{
+        FromUserID: "user1",
+        ToUserID:   "user2",
+        Content:    "Hey, how are you?",
+    }
+    dmFuture := system.Root.RequestFuture(dmPID, sendDM, 5*time.Second)
+    if result, err := dmFuture.Result(); err == nil {
+        if response, ok := result.(*messages.SendDirectMessageResponse); ok && response.Success {
+            fmt.Printf("Direct message sent successfully, ID: %s\n", response.MessageID)
+            sentMsgID = response.MessageID
+        }
+    }
+
+    // reply to the direct message
+    replyDM := &messages.SendDirectMessage{
+        ParentID:   sentMsgID,
+        Content:    "I'm good, thanks!",
+        FromUserID: "user2",
+        ToUserID:   "user1",
+    }
+    replyFuture := system.Root.RequestFuture(dmPID, replyDM, 5*time.Second)
+    if result, err := replyFuture.Result(); err == nil {
+        if response, ok := result.(*messages.SendDirectMessageResponse); ok && response.Success {
+            fmt.Printf("Direct message replied successfully, ID: %s\n", response.MessageID)
+        }
+    }
+
+    // Get messages for user2
+    getMessages := &messages.GetUserMessages{
+        UserID: "user2",
+    }
+
+    getMsgsFuture := system.Root.RequestFuture(dmPID, getMessages, 5*time.Second)
+    if result, err := getMsgsFuture.Result(); err == nil {
+        if response, ok := result.(*messages.GetUserMessagesResponse); ok && response.Success {
+            fmt.Println("\nMessages for user2:")
+            for _, dm := range response.Messages {
+                fmt.Printf("From: %s\nContent: %s\n\n", dm.FromUserID, dm.Content)
+            }
         }
     }
 
