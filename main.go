@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reddit/messages"
 	"reddit/simulation"
 	"time"
 
@@ -35,18 +36,25 @@ func printMetrics(metrics map[string]interface{}) {
     fmt.Printf("Successful Requests: %d\n", metrics["successful_requests"])
     fmt.Printf("Failed Requests: %d\n", metrics["failed_requests"])
 
-    // fmt.Println("\nAverage Response Times:")
-    // for action, duration := range metrics["avg_response_times"].(map[ActionType]time.Duration) {
-    //     fmt.Printf("%s: %v\n", action, duration)
-    // }
+    if avgResponseTimes, ok := metrics["avg_response_times"].(map[messages.ActionType]time.Duration); ok {
+        fmt.Println("\nAverage Response Times:")
+        for action, duration := range avgResponseTimes {
+            fmt.Printf("%s: %v\n", action, duration)
+        }
+    }
 
-    // fmt.Println("\nAction Counts:")
-    // for action, count := range metrics["action_counts"].(map[ActionType]int64) {
-    //     fmt.Printf("%s: %d\n", action, count)
-    // }
+    // Try different type assertions
+    if actionCounts, ok := metrics["action_counts"].(map[messages.ActionType]int64); ok {
+        fmt.Println("\nAction Counts:")
+        for action, count := range actionCounts {
+            fmt.Printf("%s: %d\n", action, count)
+        }
+    }
 
-    // fmt.Println("\nError Counts:")
-    // for action, count := range metrics["error_counts"].(map[ActionType]int64) {
-    //     fmt.Printf("%s: %d\n", action, count)
-    // }
+    if errorCounts, ok := metrics["error_counts"].(map[messages.ActionType]int64); ok {
+        fmt.Println("\nError Counts:")
+        for action, count := range errorCounts {
+            fmt.Printf("%s: %d\n", action, count)
+        }
+    }
 }

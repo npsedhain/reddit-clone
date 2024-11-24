@@ -60,6 +60,13 @@ func (state *ClientActor) Receive(context actor.Context) {
 			}
 
     case *messages.LoginUserResponse:
+			metricsMsg := &messages.MetricsMessage{
+				Action:       "login",
+				Success:      msg.Success,
+				ResponseTime: time.Since(state.startTime),
+				Error:        msg.Error,
+			}
+			context.Send(state.controllerPID, metricsMsg)
         if msg.Success {
             state.token = msg.Token
             // Start periodic actions after successful login
@@ -73,16 +80,37 @@ func (state *ClientActor) Receive(context actor.Context) {
         context.SetReceiveTimeout(state.actionDelay)
 
     case *messages.CreateSubredditResponse:
+			metricsMsg := &messages.MetricsMessage{
+				Action:       "create_subreddit",
+				Success:      msg.Success,
+				ResponseTime: time.Since(state.startTime),
+				Error:        msg.Error,
+			}
+			context.Send(state.controllerPID, metricsMsg)
         if msg.Success {
             state.mySubreddits = append(state.mySubreddits, msg.SubId)
         }
 
     case *messages.CreatePostResponse:
+			metricsMsg := &messages.MetricsMessage{
+				Action:       "create_post",
+				Success:      msg.Success,
+				ResponseTime: time.Since(state.startTime),
+				Error:        msg.Error,
+			}
+			context.Send(state.controllerPID, metricsMsg)
         if msg.Success {
             state.myPosts = append(state.myPosts, msg.PostId)
         }
 
     case *messages.CreateCommentResponse:
+			metricsMsg := &messages.MetricsMessage{
+				Action:       "create_comment",
+				Success:      msg.Success,
+				ResponseTime: time.Since(state.startTime),
+				Error:        msg.Error,
+			}
+			context.Send(state.controllerPID, metricsMsg)
         if msg.Success {
             state.myComments = append(state.myComments, msg.CommentID)
         }

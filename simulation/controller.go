@@ -71,7 +71,6 @@ func (sc *SimulationController) updateMetrics(msg *messages.MetricsMessage) {
 }
 
 func (sc *SimulationController) Receive(context actor.Context) {
-    fmt.Println("controller received message", context.Message())
     switch msg := context.Message().(type) {
     case *actor.Started:
         fmt.Println("controller started", context.Self())
@@ -103,7 +102,6 @@ func (sc *SimulationController) StartSimulation() error {
         sc.enginePIDs = append(sc.enginePIDs, enginePID)
     }
 
-    fmt.Println(sc.pid, sc.getEngineActor())
     // Create client actors
     for i := 0; i < 100; i++ {
         clientProps := actor.PropsFromProducer(func() actor.Actor {
@@ -139,6 +137,8 @@ func (sc *SimulationController) GetMetrics() map[string]interface{} {
     summary["avg_response_times"] = avgResponseTimes
     summary["action_counts"] = sc.metrics.ActionCounts
     summary["error_counts"] = sc.metrics.ErrorCounts
+
+    fmt.Println("metrics summary", summary)
 
     return summary
 }
