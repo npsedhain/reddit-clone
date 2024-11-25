@@ -37,8 +37,9 @@ The simulation is managed by a controller that:
 
 ```
 func (sc *SimulationController) StartSimulation() error {
+    fmt.Println("Starting simulation...")
     // Create engine actors
-    for i := 0; i < 10; i++ {
+    for i := 0; i < sc.numEngines; i++ {
         engineProps := actor.PropsFromProducer(func() actor.Actor {
             return actors.NewEngineActor()
         })
@@ -46,15 +47,16 @@ func (sc *SimulationController) StartSimulation() error {
         sc.enginePIDs = append(sc.enginePIDs, enginePID)
     }
 
-   // Create client actors
-   for i := 0; i < 1000; i++ {
-       clientProps := actor.PropsFromProducer(func() actor.Actor {
-           return actors.NewClientActor(sc.getEngineActor(), sc.pid)
-       })
-       clientPID := sc.system.Root.Spawn(clientProps)
-       sc.clientPIDs = append(sc.clientPIDs, clientPID)
-   }
-   return nil
+    // Create client actors
+    for i := 0; i < sc.numClients; i++ {
+        clientProps := actor.PropsFromProducer(func() actor.Actor {
+            return actors.NewClientActor(sc.getEngineActor(), sc.pid)
+        })
+        clientPID := sc.system.Root.Spawn(clientProps)
+        sc.clientPIDs = append(sc.clientPIDs, clientPID)
+    }
+
+    return nil
 }
 ```
 
