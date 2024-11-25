@@ -78,6 +78,7 @@ func (c *CommentActor) Receive(context actor.Context) {
         context.Respond(&messages.CreateCommentResponse{
             Success:   true,
             CommentID: commentID,
+            ActorPID:  context.Self(),
         })
 
     case *messages.GetPostComments:

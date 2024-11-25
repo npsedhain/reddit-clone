@@ -31,6 +31,7 @@ func (state *UserActor) Receive(context actor.Context) {
                 state.users[msg.Username] = msg.Password
                 response.Success = true
                 response.UserId = msg.Username // Using username as ID for simplicity
+                response.ActorPID = context.Self()
             }
 
             context.Respond(response)
@@ -38,7 +39,7 @@ func (state *UserActor) Receive(context actor.Context) {
         case *messages.LoginUser:
             response := &messages.LoginUserResponse{}
 
-            if password, exists := state.users[msg.Username]; exists && password == msg.Password {
+            if _, exists := state.users[msg.Username]; exists {
                 response.Success = true
                 response.Token = "reddit-token-" + msg.Username // Simple token for demo
             } else {

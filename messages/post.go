@@ -1,5 +1,7 @@
 package messages
 
+import "github.com/asynkron/protoactor-go/actor"
+
 // Post related messages
 type CreatePost struct {
 	Title     string
@@ -12,6 +14,7 @@ type CreatePostResponse struct {
 	Success bool
 	Error   string
 	PostId  string
+	ActorPID *actor.PID
 }
 
 type Post struct {
@@ -21,4 +24,5 @@ type Post struct {
 	AuthorId      string
 	SubredditName string
 	Timestamp     int64
+	ActorPID      *actor.PID
 }

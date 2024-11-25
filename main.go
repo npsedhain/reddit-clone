@@ -22,7 +22,7 @@ func main() {
     system.Root.Spawn(controllerProps)
 
     // Run for specific duration
-    simulationDuration := 5 * time.Second
+    simulationDuration := 3 * time.Second
     time.Sleep(simulationDuration)
 
     // Get and print metrics

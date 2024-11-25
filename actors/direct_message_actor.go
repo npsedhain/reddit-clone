@@ -38,6 +38,7 @@ func (state *DirectMessageActor) Receive(context actor.Context) {
         context.Respond(&messages.SendDirectMessageResponse{
             Success:   true,
             MessageID: messageID,
+            ActorPID:  context.Self(),
         })
 
     case *messages.GetUserMessages:

@@ -19,5 +19,6 @@ const (
 	ActionVote         ActionType = "vote"
 	ActionJoinSubreddit ActionType = "join_subreddit"
 	ActionCreateSubreddit ActionType = "create_subreddit"
+	ActionLeaveSubreddit  ActionType = "leave_subreddit"
 	ActionSendDM        ActionType = "send_dm"
 )

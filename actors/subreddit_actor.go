@@ -1,7 +1,9 @@
 package actors
 
 import (
+	"math/rand"
 	"reddit/messages"
+	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
 )
@@ -48,6 +50,7 @@ func (state *SubredditActor) Receive(context actor.Context) {
 
                 response.Success = true
                 response.SubId = msg.Name
+                response.ActorPID = context.Self()
             }
 
             context.Respond(response)
@@ -62,6 +65,7 @@ func (state *SubredditActor) Receive(context actor.Context) {
                 } else {
                     subreddit.Members[msg.UserId] = true
                     response.Success = true
+                    response.SubId = msg.SubredditName
                 }
             } else {
                 response.Success = false
@@ -91,12 +95,10 @@ func (state *SubredditActor) Receive(context actor.Context) {
             response := &messages.LeaveSubredditResponse{}
 
             if subreddit, exists := state.subreddits[msg.SubredditName]; exists {
-                if msg.UserId == subreddit.CreatorId {
-                    response.Success = false
-                    response.Error = "Creator cannot leave their subreddit"
-                } else if _, isMember := subreddit.Members[msg.UserId]; isMember {
+                if _, isMember := subreddit.Members[msg.UserId]; isMember {
                     delete(subreddit.Members, msg.UserId)
                     response.Success = true
+                    response.SubId = msg.SubredditName
                 } else {
                     response.Success = false
                     response.Error = "User is not a member of this subreddit"
@@ -104,6 +106,41 @@ func (state *SubredditActor) Receive(context actor.Context) {
             } else {
                 response.Success = false
                 response.Error = "Subreddit not found"
+            }
+
+            context.Respond(response)
+
+        case *messages.GetSubreddits:
+            response := &messages.GetSubredditsResponse{}
+            response.Success = true
+
+
+            // Convert map keys to slice for random selection
+            allSubreddits := make([]string, 0, len(state.subreddits))
+            for subredditName := range state.subreddits {
+                allSubreddits = append(allSubreddits, subredditName)
+            }
+
+            // Initialize random number generator
+            rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+            // Get minimum between 5 and total number of subreddits
+            numToReturn := 5
+            if len(allSubreddits) < 5 {
+                numToReturn = len(allSubreddits)
+            }
+
+            // Initialize result slice
+            response.Subreddits = make([]string, 0, numToReturn)
+
+            // Randomly select subreddits
+            for i := 0; i < numToReturn; i++ {
+                // Get random index
+                randomIndex := rand.Intn(len(allSubreddits))
+                // Add randomly selected subreddit
+                response.Subreddits = append(response.Subreddits, allSubreddits[randomIndex])
+                // Remove selected item to avoid duplicates
+                allSubreddits = append(allSubreddits[:randomIndex], allSubreddits[randomIndex+1:]...)
             }
 
             context.Respond(response)

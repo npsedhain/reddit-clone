@@ -18,8 +18,20 @@ type ClientActor struct {
     mySubreddits  []string    // subreddits created/joined by this user
     myPosts       []string    // posts created by this user
     myComments    []string    // comments created by this user
+		myDms         []string    // direct messages sent by this user
     actionDelay   time.Duration
 		startTime     time.Time
+		userToActorPID map[string]*actor.PID
+}
+
+// Add this helper function at the bottom of the file
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+			if s == item {
+					return true
+			}
+	}
+	return false
 }
 
 func NewClientActor(enginePID *actor.PID, controllerPID *actor.PID) *ClientActor {
@@ -30,8 +42,10 @@ func NewClientActor(enginePID *actor.PID, controllerPID *actor.PID) *ClientActor
         mySubreddits: make([]string, 0),
         myPosts:      make([]string, 0),
         myComments:   make([]string, 0),
+				myDms:        make([]string, 0),
         actionDelay:  time.Duration(rand.Intn(1000)) * time.Millisecond,
 				startTime:    time.Now(),
+				userToActorPID: make(map[string]*actor.PID),
     }
 }
 
@@ -56,6 +70,7 @@ func (state *ClientActor) Receive(context actor.Context) {
 			if msg.Success {
 					state.username = msg.UserId
 					// Automatically login after successful registration
+					state.userToActorPID["user"] = msg.ActorPID
 					state.login(context)
 			}
 
@@ -87,11 +102,45 @@ func (state *ClientActor) Receive(context actor.Context) {
 				Error:        msg.Error,
 			}
 			context.Send(state.controllerPID, metricsMsg)
-        if msg.Success {
-            state.mySubreddits = append(state.mySubreddits, msg.SubId)
-        }
 
-    case *messages.CreatePostResponse:
+			if msg.Success {
+					state.userToActorPID["subreddit"] = msg.ActorPID
+					state.mySubreddits = append(state.mySubreddits, msg.SubId)
+				}
+
+		case *messages.JoinSubredditResponse:
+			metricsMsg := &messages.MetricsMessage{
+					Action:       "join_subreddit",
+					Success:      msg.Success,
+					ResponseTime: time.Since(state.startTime),
+					Error:        msg.Error,
+			}
+			context.Send(state.controllerPID, metricsMsg)
+
+			if msg.Success {
+				state.mySubreddits = append(state.mySubreddits, msg.SubId)
+			}
+
+		case *messages.LeaveSubredditResponse:
+			metricsMsg := &messages.MetricsMessage{
+					Action:       "leave_subreddit",
+					Success:      msg.Success,
+					ResponseTime: time.Since(state.startTime),
+					Error:        msg.Error,
+			}
+			context.Send(state.controllerPID, metricsMsg)
+
+			if msg.Success {
+				// Remove the subreddit from the user's list
+				for i, sub := range state.mySubreddits {
+					if sub == msg.SubId {
+						state.mySubreddits = append(state.mySubreddits[:i], state.mySubreddits[i+1:]...)
+						break
+					}
+				}
+			}
+
+		case *messages.CreatePostResponse:
 			metricsMsg := &messages.MetricsMessage{
 				Action:       "create_post",
 				Success:      msg.Success,
@@ -99,9 +148,11 @@ func (state *ClientActor) Receive(context actor.Context) {
 				Error:        msg.Error,
 			}
 			context.Send(state.controllerPID, metricsMsg)
-        if msg.Success {
-            state.myPosts = append(state.myPosts, msg.PostId)
-        }
+
+			if msg.Success {
+					state.myPosts = append(state.myPosts, msg.PostId)
+					state.userToActorPID["post"] = msg.ActorPID
+			}
 
     case *messages.CreateCommentResponse:
 			metricsMsg := &messages.MetricsMessage{
@@ -111,14 +162,54 @@ func (state *ClientActor) Receive(context actor.Context) {
 				Error:        msg.Error,
 			}
 			context.Send(state.controllerPID, metricsMsg)
-        if msg.Success {
-            state.myComments = append(state.myComments, msg.CommentID)
-        }
+
+			if msg.Success {
+					state.myComments = append(state.myComments, msg.CommentID)
+					state.userToActorPID["comment"] = msg.ActorPID
+			}
+
+		case *messages.SendDirectMessageResponse:
+			metricsMsg := &messages.MetricsMessage{
+				Action:       "send_dm",
+				Success:      msg.Success,
+				ResponseTime: time.Since(state.startTime),
+				Error:        msg.Error,
+			}
+			context.Send(state.controllerPID, metricsMsg)
+
+			if msg.Success {
+					state.myDms = append(state.myDms, msg.MessageID)
+					state.userToActorPID["direct_message"] = msg.ActorPID
+			}
+
+		// Add this new case in the Receive method
+		case *messages.GetSubredditsResponse:
+			if msg.Success && len(msg.Subreddits) > 0 {
+				// Filter out subreddits the user is already part of
+				availableSubreddits := make([]string, 0)
+				for _, sub := range msg.Subreddits {
+					if !contains(state.mySubreddits, sub) {
+						availableSubreddits = append(availableSubreddits, sub)
+					}
+				}
+
+				if len(availableSubreddits) > 0 {
+						// Pick a random subreddit from available ones
+							randomSub := availableSubreddits[state.rand.Intn(len(availableSubreddits))]
+
+							joinMsg := &messages.JoinSubreddit{
+									SubredditName: randomSub,
+									UserId:        state.username,
+									ActorPID:      state.userToActorPID["subreddit"],
+							}
+							context.Request(state.enginePID, joinMsg)
+						}
+					}
     }
 }
 
 func (state *ClientActor) performRandomAction(context actor.Context) {
-    action := state.rand.Intn(6)
+    action := state.rand.Intn(8)
 
     switch action {
     case 0:
@@ -133,6 +224,10 @@ func (state *ClientActor) performRandomAction(context actor.Context) {
         state.voteOnPost(context)
     case 5:
         state.voteOnComment(context)
+		case 6:
+				state.joinRandomSubreddit(context)
+		case 7:
+				state.leaveRandomSubreddit(context)
     }
 }
 
@@ -150,6 +245,7 @@ func (state *ClientActor) login(context actor.Context) {
     msg := &messages.LoginUser{
         Username: state.username,
         Password: state.username, // Simplified for demo
+        ActorPID: state.userToActorPID["user"],
     }
     context.Request(state.enginePID, msg)
 }
@@ -159,8 +255,32 @@ func (state *ClientActor) createSubreddit(context actor.Context) {
         Name:        fmt.Sprintf("subreddit_%d", state.rand.Intn(10000)),
         Description: state.generateContent(),
         CreatorId:   state.username,
+				ActorPID: state.userToActorPID["subreddit"],
     }
     context.Request(state.enginePID, msg)
+}
+
+func (state *ClientActor) joinRandomSubreddit(context actor.Context) {
+	msg := &messages.GetSubreddits{
+		ActorPID: state.userToActorPID["subreddit"],
+	}
+
+	context.Request(state.enginePID, msg)
+}
+
+func (state *ClientActor) leaveRandomSubreddit(context actor.Context) {
+	if len(state.mySubreddits) == 0 {
+		return
+	}
+
+	subredditName := state.mySubreddits[state.rand.Intn(len(state.mySubreddits))]
+
+	msg := &messages.LeaveSubreddit{
+			SubredditName: subredditName,
+			UserId:        state.username,
+			ActorPID:      state.userToActorPID["subreddit"],
+	}
+	context.Request(state.enginePID, msg)
 }
 
 func (state *ClientActor) createPost(context actor.Context) {
@@ -174,6 +294,7 @@ func (state *ClientActor) createPost(context actor.Context) {
         Content:       state.generateContent(),
         AuthorId:      state.username,
         SubredditName: subreddit,
+				ActorPID:      state.userToActorPID["post"],
     }
     context.Request(state.enginePID, msg)
 }
@@ -188,6 +309,7 @@ func (state *ClientActor) createComment(context actor.Context) {
         PostID:   postID,
         Content:  state.generateContent(),
         AuthorID: state.username,
+				ActorPID: state.userToActorPID["comment"],
     }
     context.Request(state.enginePID, msg)
 }
@@ -197,6 +319,7 @@ func (state *ClientActor) sendDirectMessage(context actor.Context) {
         FromUserID: state.username,
         ToUserID:   fmt.Sprintf("user_%d", state.rand.Intn(1000)), // Random user
         Content:    state.generateContent(),
+				ActorPID:   state.userToActorPID["direct_message"],
     }
     context.Request(state.enginePID, msg)
 }
@@ -212,6 +335,7 @@ func (state *ClientActor) voteOnPost(context actor.Context) {
         TargetID:  postID,
         IsUpvote:  state.rand.Float32() > 0.5,
 				Type:      "post",
+				ActorPID:  state.userToActorPID["post"],
     }
     context.Request(state.enginePID, msg)
 }
@@ -227,6 +351,7 @@ func (state *ClientActor) voteOnComment(context actor.Context) {
         TargetID:  commentID,
         IsUpvote:  state.rand.Float32() > 0.5,
 				Type:      "comment",
+				ActorPID:  state.userToActorPID["comment"],
     }
     context.Request(state.enginePID, msg)
 }

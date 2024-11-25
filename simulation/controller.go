@@ -103,7 +103,7 @@ func (sc *SimulationController) StartSimulation() error {
     }
 
     // Create client actors
-    for i := 0; i < 100; i++ {
+    for i := 0; i < 1000; i++ {
         clientProps := actor.PropsFromProducer(func() actor.Actor {
             return actors.NewClientActor(sc.getEngineActor(), sc.pid)
         })

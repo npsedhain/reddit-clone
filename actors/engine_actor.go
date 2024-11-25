@@ -64,41 +64,92 @@ func (state *EngineActor) Receive(context actor.Context) {
 			state.currentUserActor = (state.currentUserActor + 1) % len(state.userActors)
 			context.RequestWithCustomSender(userActor, msg, context.Sender())
 
-	case *messages.LoginUser:
-			userActor := state.userActors[state.currentUserActor]
-			state.currentUserActor = (state.currentUserActor + 1) % len(state.userActors)
-			context.RequestWithCustomSender(userActor, msg, context.Sender())
+		case *messages.LoginUser:
+			if msg.ActorPID == nil {
+				userActor := state.userActors[state.currentUserActor]
+				state.currentUserActor = (state.currentUserActor + 1) % len(state.userActors)
+				context.RequestWithCustomSender(userActor, msg, context.Sender())
+			} else {
+				context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+			}
 
 	case *messages.CreateSubreddit:
+		if msg.ActorPID == nil {
 			subredditActor := state.subredditActors[state.currentUserActor]
 			state.currentUserActor = (state.currentUserActor + 1) % len(state.subredditActors)
 			context.RequestWithCustomSender(subredditActor, msg, context.Sender())
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+		}
+
+	case *messages.JoinSubreddit:
+		if msg.ActorPID == nil {
+			subredditActor := state.subredditActors[state.currentUserActor]
+			state.currentUserActor = (state.currentUserActor + 1) % len(state.subredditActors)
+			context.RequestWithCustomSender(subredditActor, msg, context.Sender())
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+		}
+
+	case *messages.GetSubreddits:
+		if msg.ActorPID == nil {
+			subredditActor := state.subredditActors[state.currentUserActor]
+			state.currentUserActor = (state.currentUserActor + 1) % len(state.subredditActors)
+			context.RequestWithCustomSender(subredditActor, msg, context.Sender())
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+		}
+
+	case *messages.LeaveSubreddit:
+		if msg.ActorPID == nil {
+			subredditActor := state.subredditActors[state.currentUserActor]
+			state.currentUserActor = (state.currentUserActor + 1) % len(state.subredditActors)
+			context.RequestWithCustomSender(subredditActor, msg, context.Sender())
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+		}
 
 	case *messages.Post:
+		if msg.ActorPID == nil {
 			postActor := state.postActors[state.currentUserActor]
 			state.currentUserActor = (state.currentUserActor + 1) % len(state.postActors)
 			context.RequestWithCustomSender(postActor, msg, context.Sender())
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+		}
 
 	case *messages.CreateComment:
+		if msg.ActorPID == nil {
 			commentActor := state.commentActors[state.currentUserActor]
 			state.currentUserActor = (state.currentUserActor + 1) % len(state.commentActors)
 			context.RequestWithCustomSender(commentActor, msg, context.Sender())
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+		}
 
 	case *messages.SendDirectMessage:
+		if msg.ActorPID == nil {
 			dmActor := state.directMessageActors[state.currentUserActor]
 			state.currentUserActor = (state.currentUserActor + 1) % len(state.directMessageActors)
 			context.RequestWithCustomSender(dmActor, msg, context.Sender())
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+		}
 
 	case *messages.Vote:
-		switch msg.Type {
-		case "post":
+		if msg.ActorPID == nil {
+			switch msg.Type {
+			case "post":
 				postActor := state.postActors[state.currentUserActor]
 				state.currentUserActor = (state.currentUserActor + 1) % len(state.postActors)
 				context.RequestWithCustomSender(postActor, msg, context.Sender())
-		case "comment":
+			case "comment":
 				commentActor := state.commentActors[state.currentUserActor]
 				state.currentUserActor = (state.currentUserActor + 1) % len(state.commentActors)
 				context.RequestWithCustomSender(commentActor, msg, context.Sender())
+			}
+		} else {
+			context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
 		}
 	}
 }

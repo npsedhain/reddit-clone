@@ -84,6 +84,7 @@ func (state *PostActor) Receive(context actor.Context) {
 
         response.Success = true
         response.PostId = postId
+        response.ActorPID = context.Self()
 
         context.Respond(response)
 
