@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"reddit/messages"
 	"reddit/simulation"
@@ -11,18 +12,41 @@ import (
 
 type ActionType string
 
+type SimulationConfig struct {
+	NumClients    int
+	NumEngines    int
+	DurationSecs  int
+}
+
 func main() {
+    // Define command-line flags
+    config := SimulationConfig{}
+
+    flag.IntVar(&config.NumClients, "clients", 1000, "number of client actors")
+    flag.IntVar(&config.NumEngines, "engines", 10, "number of engine actors")
+    flag.IntVar(&config.DurationSecs, "duration", 3, "simulation duration in seconds")
+
+    // Parse command-line arguments
+    flag.Parse()
+
+    // Validate inputs
+    if config.NumClients <= 0 || config.NumEngines <= 0 || config.DurationSecs <= 0 {
+        fmt.Println("Error: All parameters must be positive numbers")
+        flag.Usage()
+        return
+    }
+
     system := actor.NewActorSystem()
 
-    // Create controller (single instance)
-    controller := simulation.NewSimulationController(system)
+    // Create controller with configuration
+    controller := simulation.NewSimulationController(system, config.NumEngines, config.NumClients)
     controllerProps := actor.PropsFromProducer(func() actor.Actor {
         return controller
     })
     system.Root.Spawn(controllerProps)
 
-    // Run for specific duration
-    simulationDuration := 3 * time.Second
+    // Run for specified duration
+    simulationDuration := time.Duration(config.DurationSecs) * time.Second
     time.Sleep(simulationDuration)
 
     // Get and print metrics

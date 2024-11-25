@@ -29,13 +29,15 @@ type SimulationController struct {
     metrics      *SimulationMetrics
     zipf        *rand.Zipf
     pid         *actor.PID
+    numEngines   int
+    numClients   int
 }
 
-func NewSimulationController(system *actor.ActorSystem) *SimulationController {
+func NewSimulationController(system *actor.ActorSystem, numEngines int, numClients int) *SimulationController {
     // Initialize Zipf distribution for load balancing
     s := 1.1 // skewness parameter
     v := 1.0 // value parameter
-    imax := uint64(10) // number of engines
+    imax := uint64(numEngines) // number of engines
     zipf := rand.NewZipf(rand.New(rand.NewSource(time.Now().UnixNano())), s, v, imax)
 
     metrics := &SimulationMetrics{
@@ -47,6 +49,8 @@ func NewSimulationController(system *actor.ActorSystem) *SimulationController {
         system: system,
         metrics: metrics,
         zipf: zipf,
+        numEngines: numEngines,
+        numClients: numClients,
     }
 }
 
@@ -73,7 +77,6 @@ func (sc *SimulationController) updateMetrics(msg *messages.MetricsMessage) {
 func (sc *SimulationController) Receive(context actor.Context) {
     switch msg := context.Message().(type) {
     case *actor.Started:
-        fmt.Println("controller started", context.Self())
         sc.pid = context.Self()
             // Start simulation
         err := sc.StartSimulation()
@@ -92,9 +95,9 @@ func (sc *SimulationController) getEngineActor() *actor.PID {
 }
 
 func (sc *SimulationController) StartSimulation() error {
-    fmt.Println("starting simulation")
+    fmt.Println("Starting simulation...")
     // Create engine actors
-    for i := 0; i < 10; i++ {
+    for i := 0; i < sc.numEngines; i++ {
         engineProps := actor.PropsFromProducer(func() actor.Actor {
             return actors.NewEngineActor()
         })
@@ -103,7 +106,7 @@ func (sc *SimulationController) StartSimulation() error {
     }
 
     // Create client actors
-    for i := 0; i < 1000; i++ {
+    for i := 0; i < sc.numClients; i++ {
         clientProps := actor.PropsFromProducer(func() actor.Actor {
             return actors.NewClientActor(sc.getEngineActor(), sc.pid)
         })
@@ -137,8 +140,6 @@ func (sc *SimulationController) GetMetrics() map[string]interface{} {
     summary["avg_response_times"] = avgResponseTimes
     summary["action_counts"] = sc.metrics.ActionCounts
     summary["error_counts"] = sc.metrics.ErrorCounts
-
-    fmt.Println("metrics summary", summary)
 
     return summary
 }
