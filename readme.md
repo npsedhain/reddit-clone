@@ -37,9 +37,8 @@ The simulation is managed by a controller that:
 
 ```
 func (sc *SimulationController) StartSimulation() error {
-    fmt.Println("Starting simulation...")
     // Create engine actors
-    for i := 0; i < sc.numEngines; i++ {
+    for i := 0; i < 10; i++ {
         engineProps := actor.PropsFromProducer(func() actor.Actor {
             return actors.NewEngineActor()
         })
@@ -47,16 +46,15 @@ func (sc *SimulationController) StartSimulation() error {
         sc.enginePIDs = append(sc.enginePIDs, enginePID)
     }
 
-    // Create client actors
-    for i := 0; i < sc.numClients; i++ {
-        clientProps := actor.PropsFromProducer(func() actor.Actor {
-            return actors.NewClientActor(sc.getEngineActor(), sc.pid)
-        })
-        clientPID := sc.system.Root.Spawn(clientProps)
-        sc.clientPIDs = append(sc.clientPIDs, clientPID)
-    }
-
-    return nil
+   // Create client actors
+   for i := 0; i < 1000; i++ {
+       clientProps := actor.PropsFromProducer(func() actor.Actor {
+           return actors.NewClientActor(sc.getEngineActor(), sc.pid)
+       })
+       clientPID := sc.system.Root.Spawn(clientProps)
+       sc.clientPIDs = append(sc.clientPIDs, clientPID)
+   }
+   return nil
 }
 ```
 
@@ -432,6 +430,49 @@ The system shows excellent horizontal scaling capabilities for most operations, 
 -   Rate limiting
 
 -   Enhanced error handling
+
+## Error Hypothesis
+
+### Hypotheses for High Error Rates:
+
+1. Race Conditions in Subreddit Creation
+- Multiple clients might try to create subreddits with the same name simultaneously
+- No apparent locking mechanism in the shared subreddit map
+- Could lead to concurrent map writes or duplicate name conflicts
+
+2. Memory Contention
+- Large number of concurrent modifications to membership lists
+- Possible memory pressure from growing maps without cleanup
+- Could lead to resource exhaustion or slow operations
+
+3. Message Queue Overflow
+- Zipf distribution might be overloading certain engines
+- Popular subreddits might be handled by same engines due to distribution
+- Could lead to message queue buildup and timeouts
+
+### Supporting Evidence:
+
+-   Error Rate Scaling
+    5K clients: 3,301 join errors
+    50K clients: 41,207 join errors
+    - Error rate increases non-linearly with scale
+-   Suggests concurrent access issues rather than simple capacity problems
+-   Operation Timing
+    create_subreddit: 4.61s
+    join_subreddit: 4.63s
+    - Similar timing for both operations
+-   Suggests they might be blocking each other
+
+### Potential Solution:
+
+-   Two-Phase Operations
+
+	  1. Check subreddit exists + lock membership
+
+	  2. Perform join operation
+
+	  3. Release lock
+
 
 
 ## Technical Insights
