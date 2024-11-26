@@ -58,7 +58,106 @@ func (sc *SimulationController) StartSimulation() error {
 }
 ```
 
-### Data Distribution
+## Client and Engine Analysis
+
+These two actor systems represent the core distributed architecture of the Reddit clone. Let's see how they work together:
+
+### Architecture Overview
+
+```
+ClientActor (Multiple Instances) →→→ EngineActor (Load Balancer) →→→ Service Actors
+```
+
+#### 1. Client (The Frontend Process)
+
+```
+type  ClientActor  struct  {
+enginePID  *actor.PID  // Connection to backend
+userToActorPID  map[string]*actor.PID  // Cache of service locations
+mySubreddits  []string  // Local state
+myPosts  []string
+myComments  []string
+myDms  []string
+actionDelay  time.Duration  // Simulated user think time
+}
+```
+
+Key Features:
+
+-   Maintains local state of user's activities
+-   Simulates realistic user behavior with random actions
+-   Implements client-side caching of actor PIDs
+-   Handles metrics collection for each operation
+
+#### 2. Engine (The Backend Process)
+```
+type  EngineActor  struct  {
+userActors  []*actor.PID
+postActors  []*actor.PID
+subredditActors  []*actor.PID
+directMessageActors  []*actor.PID
+commentActors  []*actor.PID
+currentUserActor  int
+}
+```
+
+Key Features:
+
+-   Acts as a service discovery and load balancer
+-   Manages pools of service actors
+-   Implements round-robin distribution
+-   Handles message routing with actor affinity
+
+### Communication Pattern
+
+-   First Request (without ActorPID)
+    ```
+    // Client side
+    msg :=  &messages.CreatePost{...}
+    context.Request(state.enginePID, msg)
+
+    // Engine side
+    postActor := state.postActors[state.currentUserActor]
+    context.RequestWithCustomSender(postActor, msg, context.Sender())
+    ```
+
+-   Subsequent Requests (with cached ActorPID)
+    ```
+    // Client side
+    msg :=  &messages.CreatePost{
+    ActorPID: state.userToActorPID["post"]
+    ...
+    }
+    context.Request(state.enginePID, msg)
+
+    // Engine side
+    context.RequestWithCustomSender(msg.ActorPID, msg, context.Sender())
+    ```
+
+### Optimization Strategies
+
+-   Client-Side
+    ```
+    userToActorPID map[string]*actor.PID  // Caches service locations
+    ```
+    - Reduces load on engine actor
+-   Enables direct routing to service actors
+-   Maintains affinity for better caching
+
+-   Server-Side
+    ```
+    // Creates 10 instances of each service type
+    for i :=  0; i < 10; i++ {
+    userProps := actor.PropsFromProducer(func()  actor.Actor  {
+    return  NewUserActor()
+    }
+    ```
+    - Horizontal scaling of services
+-   Round-robin load balancing
+-   Service isolation
+
+
+## Data Distribution
 
 #### Posts
 
