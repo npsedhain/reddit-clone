@@ -143,3 +143,4 @@ func (sc *SimulationController) GetMetrics() map[string]interface{} {
 
     return summary
 }
+

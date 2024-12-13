@@ -74,3 +74,40 @@ type GetSubredditsResponse struct {
 	Subreddits []string
 	Error      string
 }
+
+type EditSubreddit struct {
+	Name        string
+	Description string
+	AuthorId    string    // Only moderators/creators can edit
+	ActorPID    *actor.PID
+}
+
+type EditSubredditResponse struct {
+	Success  bool
+	Error    string
+	ActorPID *actor.PID
+}
+
+type DeleteSubreddit struct {
+	Name     string
+	AuthorId string    // Only creator can delete
+	ActorPID *actor.PID
+}
+
+type DeleteSubredditResponse struct {
+	Success  bool
+	Error    string
+	ActorPID *actor.PID
+}
+
+// For cascading deletion
+type DeleteSubredditPosts struct {
+	SubredditName string
+	ActorPID      *actor.PID
+}
+
+type DeleteSubredditPostsResponse struct {
+	Success  bool
+	Error    string
+	ActorPID *actor.PID
+}

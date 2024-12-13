@@ -140,12 +140,12 @@ func (state *ClientActor) Receive(context actor.Context) {
 				}
 			}
 
-		case *messages.CreatePostResponse:
+		case *messages.PostResponse:
 			metricsMsg := &messages.MetricsMessage{
 				Action:       "create_post",
 				Success:      msg.Success,
-				ResponseTime: time.Since(state.startTime),
-				Error:        msg.Error,
+					ResponseTime: time.Since(state.startTime),
+					Error:        msg.Error,
 			}
 			context.Send(state.controllerPID, metricsMsg)
 
@@ -164,7 +164,7 @@ func (state *ClientActor) Receive(context actor.Context) {
 			context.Send(state.controllerPID, metricsMsg)
 
 			if msg.Success {
-					state.myComments = append(state.myComments, msg.CommentID)
+					state.myComments = append(state.myComments, msg.CommentId)
 					state.userToActorPID["comment"] = msg.ActorPID
 			}
 
@@ -294,9 +294,28 @@ func (state *ClientActor) createPost(context actor.Context) {
         Content:       state.generateContent(),
         AuthorId:      state.username,
         SubredditName: subreddit,
-				ActorPID:      state.userToActorPID["post"],
+        ActorPID:      state.userToActorPID["post"],
     }
-    context.Request(state.enginePID, msg)
+
+    state.startTime = time.Now() // Set start time for metrics
+    response, err := context.RequestFuture(state.enginePID, msg, 5*time.Second).Result()
+    if err != nil {
+        return
+    }
+
+    if postResponse, ok := response.(*messages.PostResponse); ok {
+        metricsMsg := &messages.MetricsMessage{
+            Action:       "create_post",
+            Success:      postResponse.Success,
+            ResponseTime: time.Since(state.startTime),
+            Error:        postResponse.Error,
+        }
+        context.Send(state.controllerPID, metricsMsg)
+
+        if postResponse.Success {
+            state.myPosts = append(state.myPosts, postResponse.PostId)
+        }
+    }
 }
 
 func (state *ClientActor) createComment(context actor.Context) {
@@ -306,10 +325,11 @@ func (state *ClientActor) createComment(context actor.Context) {
 
     postID := state.myPosts[state.rand.Intn(len(state.myPosts))]
     msg := &messages.CreateComment{
-        PostID:   postID,
+        PostId:   postID,
+        ParentId: "",  // Empty for top-level comment
         Content:  state.generateContent(),
-        AuthorID: state.username,
-				ActorPID: state.userToActorPID["comment"],
+        AuthorId: state.username,
+        ActorPID: state.userToActorPID["comment"],
     }
     context.Request(state.enginePID, msg)
 }

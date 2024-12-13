@@ -3,39 +3,64 @@ package messages
 import "github.com/asynkron/protoactor-go/actor"
 
 type CreateComment struct {
-    PostID      string
-    ParentID    string // Empty for top-level comments
+    PostId      string
+    ParentId    string  // Empty for top-level comments, CommentId for replies
     Content     string
-    AuthorID    string
+    AuthorId    string
     ActorPID    *actor.PID
 }
 
 type CreateCommentResponse struct {
     Success   bool
-    CommentID string
     Error     string
+    CommentId string
     ActorPID  *actor.PID
 }
 
-type GetPostComments struct {
-    PostID string
+type Comment struct {
+    CommentId  string
+    PostId     string
+    ParentId   string
+    Content    string
+    AuthorId   string
+    Replies    []*Comment  // Nested replies
+    ActorPID   *actor.PID
+    Timestamp  int64
+    VoteCount  int        // Add this field
+}
+
+type ListPostComments struct {
+    PostId   string
     ActorPID *actor.PID
 }
 
-type GetPostCommentsResponse struct {
+type ListPostCommentsResponse struct {
     Success  bool
-    Comments []Comment
+    Error    string
+    Comments []*Comment  // Will contain nested structure
+}
+
+type EditComment struct {
+    CommentId string
+    Content   string
+    AuthorId  string    // To verify ownership
+    ActorPID  *actor.PID
+}
+
+type EditCommentResponse struct {
+    Success  bool
     Error    string
     ActorPID *actor.PID
 }
 
-type Comment struct {
-    ID        string
-    PostID    string
-    ParentID  string
-    Content   string
-    AuthorID  string
-    Children  []Comment
-    CreatedAt int64
+type DeleteComment struct {
+    CommentId string
+    AuthorId  string    // To verify ownership
     ActorPID  *actor.PID
+}
+
+type DeleteCommentResponse struct {
+    Success  bool
+    Error    string
+    ActorPID *actor.PID
 }
